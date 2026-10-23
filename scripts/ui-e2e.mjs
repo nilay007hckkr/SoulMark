@@ -3,7 +3,40 @@ import { spawn } from "node:child_process";
 import { writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
-const [, , EDGE, OUT, BASE, PIN] = process.argv;
+import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+
+// Usage: npm run e2e  (or: node scripts/ui-e2e.mjs [browserPath] [outDir] [baseUrl] [pin])
+// Browser: BROWSER_PATH, else auto-detects Edge/Chrome on Windows, macOS and Linux.
+function detectBrowser() {
+  const candidates = [
+    process.env.BROWSER_PATH,
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge",
+  ].filter(Boolean);
+  return candidates.find((p) => existsSync(p));
+}
+function pinFromEnv() {
+  if (process.env.ORGANIZER_PIN) return process.env.ORGANIZER_PIN;
+  try {
+    return readFileSync(".env", "utf8").match(/^ORGANIZER_PIN=(.*)$/m)?.[1]?.trim();
+  } catch {
+    return undefined;
+  }
+}
+const argv = process.argv.slice(2).map((a) => a || undefined); // empty args mean "use the default"
+const [EDGE = detectBrowser(), OUT = tmpdir(), BASE = "http://localhost:3000", PIN = pinFromEnv()] = argv;
+if (!EDGE || !PIN) {
+  console.error("Need a Chrome/Edge path (BROWSER_PATH) and ORGANIZER_PIN (env or .env).");
+  process.exit(1);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const edge = spawn(EDGE, ["--headless=new", "--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--no-first-run", "--remote-debugging-port=9333", `--user-data-dir=${path.join(OUT, "edge-e2e")}`, "--window-size=520,1000", "about:blank"], { stdio: "ignore" });
 let ws, id = 0;

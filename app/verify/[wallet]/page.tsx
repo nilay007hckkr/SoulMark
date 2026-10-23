@@ -1,6 +1,21 @@
 "use client";
 
 import { stampLabel } from "@/lib/stamp";
+
+/** LinkedIn "Add licence or certification" link, pointing back to this public verify page. */
+function linkedInUrl(b: { tokenId: number; issuedAt: string; event: { name: string; issuer: string } }, wallet: string): string {
+  const issued = new Date(b.issuedAt);
+  const q = new URLSearchParams({
+    startTask: "CERTIFICATION_NAME",
+    name: `${b.event.name} — attendance badge`,
+    organizationName: b.event.issuer,
+    issueYear: String(issued.getFullYear()),
+    issueMonth: String(issued.getMonth() + 1),
+    certUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/verify/${wallet}`,
+    certId: `SOULMARK-${b.tokenId}`,
+  });
+  return `https://www.linkedin.com/profile/add?${q.toString()}`;
+}
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -84,10 +99,10 @@ export default function VerifyWalletPage() {
         )}
         {state.kind === "error" && <p className="error" role="alert">{state.message.toUpperCase()}</p>}
         {state.kind === "ok" && state.data.verified && (
-          <>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
             <div className={styles.stamp}><span>{stampLabel({ verified: true }).title}<br />SOULMARK LEDGER</span></div>
-            <p className="label" style={{ textAlign: "center", marginTop: 12 }}>{stampLabel({ verified: true }).subtitle}</p>
-          </>
+            <p className="label" style={{ textAlign: "center", margin: 0, maxWidth: 320 }}>{stampLabel({ verified: true }).subtitle}</p>
+          </div>
         )}
         {state.kind === "ok" && !state.data.verified && (
           <div className={`${styles.stamp} ${styles.stampNeutral}`}><span>NO BADGES<br />FOUND</span></div>
@@ -132,8 +147,13 @@ export default function VerifyWalletPage() {
                   <dt>BLOCK</dt><dd>#{b.blockNumber}</dd>
                 </dl>
                 <Link href={"/explorer?tx=" + encodeURIComponent(b.txHash)} className="btn-text">
-                  VIEW IN EXPLORER &rarr;
+                  VIEW IN ACTIVITY LOG &rarr;
                 </Link>
+                {!b.revoked && (
+                  <a href={linkedInUrl(b, wallet)} target="_blank" rel="noopener noreferrer" className="btn-text" style={{ display: "block", color: "var(--blue-text)" }}>
+                    ADD TO LINKEDIN &rarr;
+                  </a>
+                )}
               </div>
             </article>
           ))}

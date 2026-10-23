@@ -3,7 +3,8 @@
 # Usage: ORGANIZER_PIN=xxxxxx bash scripts/smoke.sh [base_url]
 set -euo pipefail
 BASE="${1:-http://localhost:3000}"
-PIN="${ORGANIZER_PIN:?set ORGANIZER_PIN}"
+PIN="${ORGANIZER_PIN:-$(grep -E "^ORGANIZER_PIN=" .env 2>/dev/null | cut -d= -f2)}"
+[ -n "$PIN" ] || { echo "set ORGANIZER_PIN or create .env (npm run setup)"; exit 1; }
 JAR="$(mktemp)"
 EMAIL="judge$RANDOM@example.com"
 j() { node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const o=JSON.parse(s);console.log($1)})"; }

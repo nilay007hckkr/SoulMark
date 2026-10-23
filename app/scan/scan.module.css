@@ -1,0 +1,16 @@
+.wrap { position: fixed; inset: 0; background: #000; overflow: hidden; }
+.video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.overlay {
+  position: relative; z-index: 1; height: 100%; max-width: 480px; margin: 0 auto;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 16px;
+  padding: 20px 16px 28px;
+  background: linear-gradient(#000c 0%, transparent 22%, transparent 62%, #000e 82%);
+}
+.frame { position: relative; width: min(72vw, 280px); aspect-ratio: 1; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+.c { position: absolute; width: 40px; height: 40px; border-color: var(--live); border-style: solid; border-width: 0; }
+.tl { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; }
+.tr { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; }
+.bl { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; }
+.br { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; }
+.paste { display: flex; flex-direction: column; gap: 8px; }
+.go { background: var(--green); color: #fff; border: 0; padding: 12px 18px; font-family: var(--pixel); letter-spacing: 0.14em; font-size: 20px; flex: none; }

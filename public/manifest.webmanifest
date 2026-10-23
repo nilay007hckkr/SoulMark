@@ -1,0 +1,10 @@
+{
+  "name": "SoulMark",
+  "short_name": "SoulMark",
+  "description": "Soulbound proof-of-attendance badges",
+  "start_url": "/wallet",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

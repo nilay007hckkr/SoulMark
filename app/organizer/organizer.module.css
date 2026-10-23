@@ -1,0 +1,12 @@
+.layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .layout { grid-template-columns: 380px 1fr; }
+}
+.eventCard { display: block; }
+.eventName { font-size: 22px; font-weight: 300; overflow-wrap: anywhere; }
+.count { font-size: 48px !important; line-height: 1; }

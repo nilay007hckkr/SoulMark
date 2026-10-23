@@ -1,0 +1,18 @@
+.valid, .broken { font-family: var(--pixel); letter-spacing: 0.14em; font-size: 18px; padding: 4px 12px; border-radius: 6px; }
+.valid { color: var(--live); border: 1px solid var(--live); }
+.broken { color: var(--red); border: 1px solid var(--red); }
+.bannerOk, .bannerBad { font-family: var(--pixel); letter-spacing: 0.12em; font-size: 18px; padding: 12px 14px; margin: 16px 0 0; }
+.bannerOk { background: #0f2a0f; color: var(--live); }
+.bannerBad { background: #2a0f0f; color: var(--red); }
+.block { display: flex; flex-direction: column; gap: 4px; }
+.hash { font-family: var(--pixel); font-size: 17px; letter-spacing: 0.04em; margin: 0; word-break: break-all; color: #ccc; }
+.txs { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tx { background: #1a1a1a; border-radius: 10px; padding: 10px 12px; border: 1px solid transparent; }
+.txHit { border-color: var(--live); box-shadow: 0 0 0 2px rgba(61, 220, 61, 0.25); }
+.type { font-family: var(--pixel); letter-spacing: 0.12em; font-size: 16px; padding: 2px 8px; border-radius: 6px; background: #555; color: #fff; }
+.t_CREATE_EVENT { background: var(--blue); }
+.t_CLAIM { background: var(--green); }
+.t_REVOKE { background: var(--red); }
+.t_REISSUE { background: var(--orange); color: #000; }
+.from { font-family: var(--pixel); font-size: 16px; color: var(--muted); margin: 6px 0 0; letter-spacing: 0.08em; }
+.data { margin: 6px 0 0; font-size: 12px; color: #aaa; white-space: pre-wrap; word-break: break-all; font-family: ui-monospace, Consolas, monospace; }

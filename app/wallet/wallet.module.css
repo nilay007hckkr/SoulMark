@@ -1,0 +1,22 @@
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.iconBtn { background: none; border: 0; color: #fff; padding: 6px; display: inline-flex; text-decoration: none; }
+.hero { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; margin: 8px 0 16px; }
+.stats { display: flex; flex-direction: column; gap: 12px; }
+.profile { display: flex; flex-direction: column; gap: 14px; }
+.addrRow { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px 16px; margin-top: 12px; }
+.badgeCard { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.badgeName { font-size: 15px; font-weight: 500; margin: 4px 0 0; }
+.meta { font-family: var(--pixel); letter-spacing: 0.08em; font-size: 16px; color: var(--muted); text-transform: uppercase; }
+.share { font-family: var(--pixel); letter-spacing: 0.1em; font-size: 16px; background: none; border: 0; color: var(--blue-text); text-transform: uppercase; padding: 4px 0; }
+.empty { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 40px 0; text-align: center; }
+.cross { position: relative; width: 120px; height: 120px; }
+.cross::before, .cross::after { content: ""; position: absolute; background: #fff; }
+.cross::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+.cross::after { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+.eventRow { display: flex; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.eventRow:hover { background: #0b0b0b; }
+.liveDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--live); margin-right: 6px; }
+@media (min-width: 720px) {
+  .gallery { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}

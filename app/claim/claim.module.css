@@ -1,0 +1,5 @@
+.pending { align-items: center; gap: 18px; }
+.skel { width: 200px; height: 200px; border-radius: 50%; }
+.reveal { align-items: center; }
+.badgeWrap { display: flex; justify-content: center; margin-bottom: 8px; }
+.eventName { font-weight: 200; font-size: 32px; margin: 0; }

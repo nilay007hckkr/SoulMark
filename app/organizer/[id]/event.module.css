@@ -1,0 +1,18 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 800px) {
+  .stats { grid-template-columns: repeat(4, 1fr); }
+}
+.big { font-family: var(--pixel); font-size: 64px; line-height: 1; }
+.mid { font-family: var(--pixel); font-size: 36px; line-height: 1.1; letter-spacing: 0.08em; }
+.row { display: flex; flex-direction: column; gap: 10px; }
+.rowMain { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.rowMain a { text-decoration: none; }
+.flash { animation: flash 2s ease-out; }
+@keyframes flash {
+  0% { background: #1f5f1f; box-shadow: 0 0 0 2px var(--live); }
+  100% { background: var(--surface-2); box-shadow: 0 0 0 0 transparent; }
+}

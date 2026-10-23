@@ -1,0 +1,27 @@
+.hero { display: flex; justify-content: center; padding: 28px 0; }
+.stamp {
+  width: 200px; height: 200px; border-radius: 50%;
+  border: 6px double var(--live); color: var(--live);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-family: var(--pixel); font-size: 30px; letter-spacing: 0.1em; line-height: 1.05;
+  transform: rotate(-12deg);
+  box-shadow: inset 0 0 0 6px #000, inset 0 0 0 8px var(--live);
+}
+.stampNeutral { border-color: var(--muted); color: var(--muted); box-shadow: inset 0 0 0 6px #000, inset 0 0 0 8px var(--muted); }
+.stampRed { border-color: var(--red); color: var(--red); box-shadow: inset 0 0 0 6px #000, inset 0 0 0 8px var(--red); }
+.stampSkel { width: 200px; height: 200px; border-radius: 50%; }
+.item { display: flex; gap: 16px; align-items: flex-start; }
+.revoked { opacity: 0.7; }
+.badgeCol { flex: none; }
+.meta { flex: 1; min-width: 0; }
+.title { font-weight: 300; font-size: 22px; margin: 0; }
+.dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0; font-size: 14px; }
+.dl dt { font-family: var(--pixel); letter-spacing: 0.12em; color: var(--muted); font-size: 16px; }
+.dl dd { margin: 0; word-break: break-word; }
+.statusActive, .statusRevoked { font-family: var(--pixel); letter-spacing: 0.12em; font-size: 16px; padding: 2px 8px; border-radius: 6px; flex: none; }
+.statusActive { color: var(--live); border: 1px solid var(--live); }
+.statusRevoked { color: var(--red); border: 1px solid var(--red); }
+@media (max-width: 420px) {
+  .item { flex-direction: column; align-items: center; }
+  .meta { width: 100%; }
+}

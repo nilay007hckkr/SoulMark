@@ -1,10 +1,15 @@
 import { clientIp, cookieSecure, deviceFor, setDeviceCookie, VOUCHER_COOKIE } from "@/lib/http";
-import { recordScan } from "@/lib/presence";
+import { findScan, recordScan } from "@/lib/presence";
 import { issueVoucher, verifyClaimToken, VOUCHER_TTL_MS } from "@/lib/qrToken";
+import { allowHit } from "@/lib/rateLimit";
 import { loadPresence, savePresence, secrets } from "@/lib/store";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+const scanHits: Map<string, { count: number; since: number }> =
+  ((globalThis as Record<string, unknown>).__smScanHits as Map<string, { count: number; since: number }>) ?? new Map();
+(globalThis as Record<string, unknown>).__smScanHits = scanHits;
 
 /**
  * The QR on the big screen points here. A fresh, correctly signed QR is exchanged for a
@@ -23,10 +28,15 @@ export async function GET(req: Request) {
   let voucher: string | null = null;
   if (check.ok) {
     voucher = issueVoucher(check.payload, qrSecret, now).voucher;
+    const ip = clientIp(req);
     const presence = loadPresence();
-    const scan = recordScan(presence, { eventId: check.payload.e, nonce: check.payload.n, deviceId: device.id, ip: clientIp(req), at: now });
-    savePresence(presence);
-    location += `&s=${scan.id}`;
+    // One record per phone per QR window; record-flooding is throttled so it can't evict real scans.
+    let scan = findScan(presence, { nonce: check.payload.n, deviceId: device.id });
+    if (!scan && allowHit(scanHits, ip, now, 60, 60_000) && allowHit(scanHits, "__all__", now, 1_000, 60_000)) {
+      scan = recordScan(presence, { eventId: check.payload.e, nonce: check.payload.n, deviceId: device.id, ip, at: now });
+      savePresence(presence);
+    }
+    if (scan) location += `&s=${scan.id}`;
   }
   // Relative redirect keeps the user on the same host the cookies were set for.
   const res = new NextResponse(null, { status: 303, headers: { location } });

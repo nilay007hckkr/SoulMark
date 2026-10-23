@@ -5,6 +5,7 @@ import { claim, createEvent, createLedger, LedgerError, setGeofence, verifyChain
 import { assessClaim, claimTimeStats, createPresence, deviceConflict, findScan, heavyScanners, recordClaim, recordScan, type ClaimRecord } from "../lib/presence.ts";
 import { allowHit } from "../lib/rateLimit.ts";
 import { stampLabel } from "../lib/stamp.ts";
+import { smtpConfig } from "../lib/mailer.ts";
 
 // Graphic Era main gate area (approx.) and points ~40 m and ~1.1 km away.
 const ROOM = { lat: 30.2688, lng: 77.9938 };
@@ -119,6 +120,14 @@ test("rate limit: 6th request in the window is refused, then the window resets",
   assert.equal(allowHit(m, "ip", 2000, 5, 60_000), false);
   assert.equal(allowHit(m, "other-ip", 2000, 5, 60_000), true);
   assert.equal(allowHit(m, "ip", 70_000, 5, 60_000), true);
+});
+
+test("email delivery is only enabled when SMTP is fully configured", () => {
+  assert.equal(smtpConfig({}), null);
+  assert.equal(smtpConfig({ SMTP_HOST: "smtp.example.com", SMTP_USER: "u", SMTP_PASS: "" , SMTP_FROM: "a@b.c" }), null);
+  const cfg = smtpConfig({ SMTP_HOST: "smtp.example.com", SMTP_PORT: "465", SMTP_USER: "u", SMTP_PASS: "p", SMTP_FROM: "SoulMark <a@b.co>" });
+  assert.equal(cfg?.secure, true);
+  assert.equal(smtpConfig({ SMTP_HOST: "h", SMTP_USER: "u", SMTP_PASS: "p", SMTP_FROM: "f" })?.port, 587);
 });
 
 test("verify stamp never says on-chain without a confirmed chain transaction", () => {

@@ -57,15 +57,18 @@ export function currentUser(req: Request): AuthUser | null {
 // Brute-force guard for the organizer PIN: after 10 wrong PINs from one client within 10 minutes,
 // every PIN check from that client fails for 10 minutes. Kept on globalThis so all route bundles share it.
 const PIN_MAX_FAILS = 10;
+const PIN_GLOBAL_MAX_FAILS = 50;
 const PIN_WINDOW_MS = 10 * 60_000;
+const GLOBAL_KEY = "__all__";
 const pinFails: Map<string, { count: number; since: number }> =
   ((globalThis as Record<string, unknown>).__smPinFails as Map<string, { count: number; since: number }>) ?? new Map();
 (globalThis as Record<string, unknown>).__smPinFails = pinFails;
 
 /**
- * Client IP. The Next server appends the direct peer as the right-most X-Forwarded-For entry.
- * Only with TRUST_PROXY=true (app behind a tunnel/reverse proxy) do we use CF-Connecting-IP or the
- * entry the proxy added; otherwise client-supplied forwarding headers are never trusted.
+ * Best-effort client IP. `next start` only fills X-Forwarded-For with the socket peer when the header is
+ * missing, so without a proxy in front a client can forge it. Per-IP limits are therefore backed by
+ * global ceilings (see pinMatches and the sign-in route), and the "different network" signal is soft.
+ * With TRUST_PROXY=true (behind a tunnel) we use CF-Connecting-IP or the entry the proxy added.
  */
 export function clientIp(req: Request): string {
   const xff = (req.headers.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -103,9 +106,13 @@ export function setDeviceCookie(res: NextResponse, req: Request, device: { id: s
 /** Constant-time PIN comparison (hash both sides so lengths match), rate limited per client. */
 export function pinMatches(given: unknown, client = "local"): boolean {
   const now = Date.now();
-  const rec = pinFails.get(client);
-  if (rec && now - rec.since > PIN_WINDOW_MS) pinFails.delete(client);
+  for (const key of [client, GLOBAL_KEY]) {
+    const rec = pinFails.get(key);
+    if (rec && now - rec.since > PIN_WINDOW_MS) pinFails.delete(key);
+  }
   if ((pinFails.get(client)?.count ?? 0) >= PIN_MAX_FAILS) return false;
+  // Global ceiling: forged X-Forwarded-For values can't buy unlimited guesses.
+  if ((pinFails.get(GLOBAL_KEY)?.count ?? 0) >= PIN_GLOBAL_MAX_FAILS) return false;
   let ok = false;
   if (typeof given === "string" && given && given.length <= 64) {
     const a = createHash("sha256").update(given).digest();
@@ -113,9 +120,11 @@ export function pinMatches(given: unknown, client = "local"): boolean {
     ok = timingSafeEqual(a, b);
   }
   if (!ok && given) {
-    const cur = pinFails.get(client) ?? { count: 0, since: now };
-    cur.count += 1;
-    pinFails.set(client, cur);
+    for (const key of [client, GLOBAL_KEY]) {
+      const cur = pinFails.get(key) ?? { count: 0, since: now };
+      cur.count += 1;
+      pinFails.set(key, cur);
+    }
   }
   return ok;
 }
@@ -125,7 +134,7 @@ export function isOrganizer(req: Request): boolean {
 }
 
 export function organizerLocked(req: Request): boolean {
-  return (pinFails.get(clientKey(req))?.count ?? 0) >= PIN_MAX_FAILS;
+  return (pinFails.get(clientKey(req))?.count ?? 0) >= PIN_MAX_FAILS || (pinFails.get(GLOBAL_KEY)?.count ?? 0) >= PIN_GLOBAL_MAX_FAILS;
 }
 
 export function badgeView(state: LedgerState, badge: Badge) {

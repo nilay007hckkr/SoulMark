@@ -365,6 +365,7 @@ export default function Badge3D(props: Badge3DProps) {
       bottom.dispose();
       tex.dispose();
       renderer.dispose();
+      renderer.forceContextLoss(); // release the WebGL context now; browsers cap live contexts
     };
   }, [art, eventName, date, size, revoked, animateIn]);
 

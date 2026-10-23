@@ -20,7 +20,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const prev = event.geofence;
     const lat = body.lat ?? prev?.lat;
     const lng = body.lng ?? prev?.lng;
-    const radiusM = Number(body.radiusM ?? prev?.radiusM ?? 100);
+    let radiusM = Number(body.radiusM ?? prev?.radiusM ?? 100);
+    // Switching off must always work, even if a bad radius was sent with it.
+    if (!body.enabled) radiusM = Math.min(5000, Math.max(10, Number.isFinite(radiusM) ? radiusM : 100));
     if (!isLatLng(lat, lng)) {
       if (body.enabled) return fail(400, "Set the room's location first (latitude/longitude)");
       return json({ event: eventView(ledger, id) }); // nothing to switch off

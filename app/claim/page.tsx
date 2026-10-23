@@ -51,6 +51,7 @@ function friendly(status: number, raw: string): Failure {
   const lower = raw.toLowerCase();
   if (status === 400) return { status, message: raw || "This QR code has expired — scan the live one on screen again" };
   if (status === 409) {
+    if (lower.includes("proxy")) return { status, message: raw }; // same phone, second account: blocked
     if (lower.includes("reuse") || lower.includes("used"))
       return { status, message: "This QR code was already used — scan the live one on screen again" };
     return { status, message: "You already have this badge", showWallet: true };

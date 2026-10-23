@@ -1,53 +1,86 @@
-# SoulMark — Round 1 summary
+# SoulMark — summary (Round 1 + Round 2)
 
 ## What was built
 A Next.js 16 + TypeScript PWA that issues **soulbound (non-transferable) attendance badges**:
-- **Organizer:** PIN-protected dashboard → create event → presentation mode with a **rotating HMAC-signed QR** (20 s), countdown bar, live counter and claim animation → live claim feed with inline **revoke / reissue**.
-- **Attendee:** scan QR → email + 6-digit key (demo mode shows the key) → wallet auto-created → **claim screen** with an animated holographic badge (art seeded from `sha256(eventId:wallet)`) → **badge wallet**.
-- **Anyone:** `/verify/<wallet>` with a VERIFIED ON-CHAIN stamp, issuer, token # and block #; the `/api/check?wallet=&event=` API; and a `/explorer` page for the ledger.
-- **Ledger:** append-only, hash-chained, with one transaction per block. It follows the ERC-5192 rules: `claim`, issuer-only `revoke` / `reissue`, `hasBadge`, `locked()` is always true, `transfer()` always reverts. `verifyChain()` replays the history and detects edits to blocks, transactions, ownership, revoked flags and event windows.
-- **PWA:** manifest, plus a service worker that caches the wallet and verify data for bad venue Wi-Fi.
+- **Organizer:**
+  - PIN-protected dashboard → create event.
+  - **Geofence** (room location + radius).
+  - Presentation mode with a **rotating HMAC-signed QR** (20 s) and a live counter.
+  - Live claim feed with **revoke / reissue**.
+  - **Proxy Watch:** flagged claims, the person who shared a forwarded link, blocked proxy attempts, claim-time stats.
+- **Attendee:** scan QR → email + 6-digit key → custodial wallet created → GPS check if the event is geofenced → **3D holographic badge** (three.js coin; art seeded from `sha256(eventId:wallet)`) → **badge wallet** with a featured 3D badge.
+- **Anyone:**
+  - `/verify/<wallet>` with an honest **VERIFIED · SOULMARK LEDGER** stamp and **Add to LinkedIn**.
+  - The `/api/check` API (`onChain:false`, status, txHash).
+  - An activity log of every block.
+- **Ledger:** append-only and hash-chained, with ERC-5192 rules (`claim`, issuer-only `revoke`/`reissue`, `hasBadge`, `locked()`, `transfer()` reverts). `verifyChain()` replays history.
+- **Contract (not deployed):** `contracts/SoulMark.sol`, ERC-5192 with EIP-712 issuer vouchers. 17 Hardhat tests.
+
+## Round 2 — judges' comments
+| # | Comment | Change | Files |
+|---|---|---|---|
+| 1 | Identify who shares the QR/link used for proxy | Each scan is recorded per phone (`sm_device`). The claim link carries the scan id, so a forwarded link is flagged high risk and the sharer is named on the dashboard | `lib/presence.ts`, `app/api/scan`, `app/api/claim`, `app/claim/page.tsx`, `app/api/events/[id]/integrity`, `app/organizer/[id]/page.tsx` |
+| 2 | Geofence from the organizer dashboard with a radius | Geofence card: room location, radius 25–1000 m with presets, on/off. Server haversine check with accuracy allowance; no location fails closed | `lib/geo.ts`, `lib/ledger.ts` (`setGeofence`), `app/api/events/[id]/geofence`, `app/api/claim`, `app/claim/page.tsx`, `app/organizer/[id]/page.tsx` |
+| 3 | Detect who's going to mark proxy | One phone claiming an event for a second account is blocked and the phone owner is identified. Risk score per claim; early warning for repeated scanners; median/p90 claim time | `lib/presence.ts`, `app/api/claim`, `app/api/events/[id]/integrity`, dashboard |
+| 4 | 3D badges instead of 2D | three.js coin: thickness, iridescent art faces, orbiting lights, pointer/gyro tilt, claim fly-in. CSS fallback | `components/Badge3D.tsx`, `components/Badge3DLazy.tsx`, `app/claim/page.tsx`, `app/wallet/*` |
+
+## Round 2 — brief/FIXES.md status
+| ID | Fix | Status |
+|---|---|---|
+| F1 | ERC-5192 contract on Base Sepolia | **Partial:** contract + 17 tests + deploy script done. Not deployed: needs a funded testnet key (human setup) |
+| F2 | Relayer + mint queue | **Skipped:** depends on a deployed contract and a funded relayer key |
+| F3 | Honest stamp | **Done for the current state:** the stamp never says "on-chain" without a chain tx (tested); `/api/check` returns `onChain:false`; explorer renamed "Activity log". Reading `hasBadge` from the chain waits on F1/F2 |
+| F4 | HTTPS, Secure cookies, proxy-aware IP | **Partial:** `TRUST_PROXY` (CF-Connecting-IP / proxy-added XFF entry), Secure cookies on HTTPS. The stable HTTPS tunnel is human setup |
+| F5 | Continue with Google | **Skipped:** needs a Google OAuth client ID and an HTTPS origin |
+| F6 | Real email delivery | **Done (config-gated):** nodemailer over SMTP when `SMTP_*` is set; unit-tested gating. Not tried against a live SMTP server |
+| F7 | Geofence | **Done** (judge comment 2) |
+| F8 | One claim per device per event + per-IP sign-in limit | **Done:** device cap (409, proxy marker recorded), per-IP OTP limit (default 20/10 min, configurable; classrooms share NAT), expired OTPs pruned |
+| F9 | Claim-time metric | **Done:** median, p90, over-10 s on the dashboard |
+| F10 | Gyroscope tilt / R3F | **Done** with plain three.js instead of R3F (judge comment 4) |
+| F11 | Share card + Add to LinkedIn | **Partial:** "Add to LinkedIn" certification link done; OG share image not done |
+| F12 | On-chain `tokenURI` art | **Skipped:** needs F1 deployed first |
+| F13 | CI | **Done:** typecheck, tests, build, contract tests |
+| F14 | Cross-platform scripts | **Partial:** `npm run setup`, `npm run e2e` (browser auto-detect), `npm run smoke` (still a bash script) |
+| F15 | Repo cleanup | **Done:** MIT LICENSE, env keys in `.env.example`, FIXES.md at root. Kit zip **kept** (organizers require it); gitleaks not run |
+| F16 | Trust model + threat table | **Done** in README |
+
+## Round 2 independent review (fixed)
+An adversarial review of the Round 2 code confirmed four issues, all fixed:
+1. **High:** without a proxy in front, `next start` passes a client-supplied `X-Forwarded-For` through, so per-IP limits could be bypassed. Fix: global ceilings on wrong PINs (50 per 10 min) and sign-in requests. Verified live: after 50 wrong PINs from 50 forged IPs, even the right PIN is locked out.
+2. The proxy-block 409 was shown as "You already have this badge". It now shows the real message.
+3. `/api/scan` was unthrottled and could evict real scan records. Fix: one record per phone per QR window, plus per-IP and global rate limits.
+4. A bad radius could stop the organizer switching the geofence off. Turning it off now always works.
+
+Also: WebGL contexts are released on unmount.
+
+Known and accepted: a recipient can launder a forwarded link by deleting `s=` (flagged "watch" instead of "high") or by re-opening the QR token within its ~30 s life. The geofence and network signals remain the defence there.
 
 ## Key decisions
 | Decision | Why | Trade-off |
 |---|---|---|
-| Local hash-chained ledger instead of a live L2 | Fits the 35-minute build, and the same rules are fully unit-tested | Not trust-minimised: the server operator could rewrite the whole file. Round 2 moves to an ERC-5192 contract on Base Sepolia |
-| QR → single-use voucher cookie | The QR dies in 30 s, but a first-time user needs time to sign in | A link forwarded within 30 s can still be claimed (no geofence yet) |
-| Email + key with a server-created wallet | No seed phrase and no gas prompt, as the brief requires | Custodial; demo mode skips real email |
-| JSON files + atomic writes | Zero dependencies, survives restarts | Single process; whole-file rewrite per request |
-| Polling (1.5–3 s) instead of WebSockets | Simple and robust on venue Wi-Fi | Slightly delayed counter |
-| CSS holographic badge instead of three.js | No heavy dependency, works on weak phones, respects reduced motion | Less "wow" than real 3D |
+| Local hash-chained ledger; contract written but not deployed | No funded key and a 60-minute budget, and the judge comments came first | Not trustless yet. The stamp says so honestly |
+| Block hard, flag soft (proxy) | Outside the geofence and a second account on one phone are near-certain proxies. Forwarded links and network mismatches have innocent explanations | A forwarded link still mints, but it is flagged and names the sharer; the organizer revokes |
+| Personal claim link (`s=scanId`) + device cookie | Identifies the sharer without accounts at scan time | Cookie reset or incognito evades the device cap |
+| Plain three.js instead of React Three Fiber | One dependency, no React 19 compatibility risk, lazy-loaded, one canvas per screen | Imperative code |
+| Per-IP OTP limit 20/10 min, not 5 | A classroom shares one NAT IP | Weaker against a single-IP farm, which the device cap and the geofence cover |
 
 ## Testing
-- `npm test`: **22 unit tests**. They cover ledger rules, soulbound transfer revert, revoke / reissue (including double-reissue and re-claim after revoke), tamper detection, QR token / voucher forgery and expiry, OTP limits, sessions and input validation.
-- `scripts/smoke.sh`: an API journey covering create event (and wrong PIN), QR, scan → voucher, sign-in, claim, duplicate and forged claims, wallet, public verify and check, dashboard, revoke, re-claim after revoke, and ledger validity.
-- `scripts/ui-e2e.mjs`: the real-browser journey in headless Edge. Organizer → present QR → open QR link → email → key → claim (badge revealed) → wallet. It produced the screenshots in `docs/`.
+- `npm test`: **35 unit tests**. Covers ledger rules and tamper detection; QR/voucher; OTP, sessions and validation; and for Round 2 the geofence (inside, outside, accuracy cap, fail-closed), proxy detection (sharer naming, scan-window binding, second account on one phone, risk levels, early warning, claim-time stats), rate limit, the honest stamp and SMTP gating.
+- `contracts`: **17 Hardhat tests**. Soulbound reverts, voucher expiry/forgery/replay, issuer-only actions, ERC-165 id, Locked event.
+- `npm run smoke`: the API journey plus Round 2 scenarios.
+  - Geofence: 428 without location, 403 from 1.1 km, OK inside.
+  - A forwarded link is flagged and names the sharer.
+  - A second account on the same phone is blocked.
+  - The integrity report.
+- `npm run e2e`: the real-browser journey in headless Edge. Checks the 3D canvas on the claim and wallet screens and the dashboard's geofence and proxy-watch sections.
 
-## Independent review: what was found and fixed
-An independent review (security, logic and frontend) checked every finding with an adversarial verifier. Nine findings were confirmed. Fixed:
-1. **High: organizer PIN brute force.** After 10 wrong PINs, that client is locked out for 10 minutes, on every PIN-protected route.
-2. **High: demo mode failed open.** The on-screen key now needs `DEMO_MODE=true` set explicitly, and the server logs a warning when it is on.
-3. **High: a corrupt `ledger.json` was silently replaced.** A parse failure now refuses to overwrite the file, and writes are atomic (temp file + rename).
-4. **High: a badge could be reissued twice.** The second reissue now returns 409.
-5. **Medium: a revoked wallet could re-claim with the live QR.** That now returns 403 "revoked".
-6. **Medium: `verifyChain` missed edits to revoked flags and event windows.** It now replays REVOKE and CREATE_EVENT transactions.
-7. **Medium: re-requesting an OTP reset the wrong-key counter.** Attempts now carry over, and expired OTPs are pruned.
-8. **Medium: the present page re-fetched the QR 4×/s after a failed refresh and kept showing a dead QR.** A failed refresh now clears the QR, and a closed event stops retrying.
-9. **Low:**
-   - The request size is checked before the body is read.
-   - The claim page shows the server's real 400/403 message.
-   - The verify page no longer crashes on malformed URL escapes.
-
-Also found by our own UI test and fixed: the `/api/scan` redirect switched from `localhost` to the LAN IP, so the voucher cookie was set on the wrong host. It now redirects on the same host.
-
-## Limitations (known, not yet addressed)
-- **No public blockchain yet.** "Verified on-chain" refers to SoulMark's own hash-chained ledger. A server operator with file access could rebuild the whole chain.
-- **Demo mode** shows the sign-in key on screen. Anyone can sign in as any email until real email delivery is added (`DEMO_MODE=false` logs the key on the server instead).
-- **Presence proof is weak:** a QR link forwarded within ~30 s can be claimed remotely, and there is no geofence.
-- **One shared organizer PIN.** The PIN lockout is per client IP; behind a proxy without `x-forwarded-for` all clients share one bucket, so someone could lock the organizer out for 10 minutes.
-- `auth.json` grows with every distinct email (no per-IP rate limit on sign-in requests), and the JSON store rewrites whole files.
-- The in-app camera scanner needs BarcodeDetector (Chrome/Edge on Android) and HTTPS or localhost; otherwise use the phone's camera app or paste the link.
-- The 3D (React Three Fiber) badge, LinkedIn share card, tiers and the ZK proof from the brief are not built; they are in the backlog in `notes/plan.md`.
-
-## Acceptance criteria status (from the plan)
-All ten criteria (AC1–AC10) are met and checked by the unit tests, the API smoke test or the real-browser UI test. AC3 ("no seed phrase / no gas") is met in demo mode; real email delivery is a known limitation.
+## Limitations (current)
+- **Not on a public blockchain yet.** The SoulMark ledger is tamper-evident but the operator could rebuild it. The contract needs a funded key and a relayer.
+- **Presence checks are speed bumps:**
+  - GPS can be spoofed.
+  - Incognito or clearing cookies resets the device id.
+  - A friend who claims within 30 s from inside the geofence radius is not caught.
+- Demo mode shows the sign-in key on screen. Real email works only once `SMTP_*` is configured. Google sign-in is pending.
+- Geolocation, the in-app scanner and the service worker need HTTPS on phones (tunnel + `PUBLIC_BASE_URL` + `TRUST_PROXY=true`).
+- One organizer PIN; single-process JSON storage; per-IP limits are in memory (reset on restart).
+- OG share image, R3F, ZK proofs, tiers and NFC are out of scope.

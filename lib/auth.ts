@@ -38,10 +38,13 @@ export function createAuthState(): AuthState {
 }
 
 export function requestOtp(state: AuthState, email: string, nowMs: number): string {
+  for (const [k, o] of Object.entries(state.otps)) if (o.exp < nowMs) delete state.otps[k];
   const prev = state.otps[email];
   if (prev && nowMs - prev.sentAt < OTP_RESEND_MS) throw new AuthError(429, "Please wait a few seconds before asking for a new key");
+  if (prev && prev.attempts >= OTP_MAX_ATTEMPTS) throw new AuthError(429, "Too many wrong keys — try again in a few minutes");
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  state.otps[email] = { hash: hash(`${email}:${code}`), exp: nowMs + OTP_TTL_MS, attempts: 0, sentAt: nowMs };
+  // Wrong-key attempts carry over to the new key until the old one expires, so re-requesting doesn't reset the limit.
+  state.otps[email] = { hash: hash(`${email}:${code}`), exp: nowMs + OTP_TTL_MS, attempts: prev?.attempts ?? 0, sentAt: nowMs };
   return code;
 }
 

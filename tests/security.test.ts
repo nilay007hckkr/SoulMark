@@ -63,6 +63,14 @@ test("OTP: wrong keys are limited, keys are single-use and expire", () => {
   assert.throws(() => verifyOtp(s2, "c@x.io", c3, NOW + 60_000 + 6 * 60_000), AuthError); // expired
 });
 
+test("OTP: asking for a new key does not reset the wrong-key limit", () => {
+  const s = createAuthState();
+  const code = requestOtp(s, "f@x.io", NOW);
+  const wrong = code === "000000" ? "111111" : "000000";
+  for (let i = 0; i < OTP_MAX_ATTEMPTS; i++) assert.throws(() => verifyOtp(s, "f@x.io", wrong, NOW), AuthError);
+  assert.throws(() => requestOtp(s, "f@x.io", NOW + 30_000), (e: unknown) => e instanceof AuthError && e.status === 429);
+});
+
 test("OTP resend is rate limited", () => {
   const s = createAuthState();
   requestOtp(s, "d@x.io", NOW);

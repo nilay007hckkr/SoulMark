@@ -49,5 +49,12 @@ echo "   page /verify/$WALLET -> $(curl -s -o /dev/null -w '%{http_code}' "$BASE
 echo "9. live dashboard count + ledger"
 curl -s "$BASE/api/events/$EVENT" | j '"   claimed="+o.event.claimed+" recent="+o.recent.length'
 curl -s "$BASE/api/chain" | j '"   ledger height="+o.height+" valid="+o.valid'
+
+echo "10. issuer revokes the badge"
+TOKEN_ID=$(curl -s "$BASE/api/events/$EVENT" | j 'o.recent[0].tokenId')
+curl -s -X POST "$BASE/api/badges/$TOKEN_ID/revoke" -H "x-organizer-pin: $PIN" | j '"   badge #"+o.badge.tokenId+" revoked="+o.badge.revoked'
+curl -s "$BASE/api/verify/$WALLET" | j '"   verify after revoke: verified="+o.verified'
+echo "   re-claim after revoke -> $(curl -s -b "$JAR" -X POST "$BASE/api/claim" -H 'content-type: application/json' -d "{\"token\":\"$TOKEN\"}")"
+curl -s "$BASE/api/chain" | j '"   ledger height="+o.height+" valid="+o.valid'
 rm -f "$JAR"
 echo "SMOKE TEST PASSED"

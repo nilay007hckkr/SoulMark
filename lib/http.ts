@@ -26,6 +26,7 @@ export function handleError(e: unknown) {
 }
 
 export async function readBody(req: Request): Promise<Record<string, unknown>> {
+  if (Number(req.headers.get("content-length") ?? 0) > 10_000) throw new LedgerError("too_large", 413, "Request body too large");
   const text = await req.text();
   if (text.length > 10_000) throw new LedgerError("too_large", 413, "Request body too large");
   if (!text) return {};
@@ -52,16 +53,44 @@ export function currentUser(req: Request): AuthUser | null {
   return sessionUser(loadAuth(), getCookie(req, SESSION_COOKIE), Date.now());
 }
 
-/** Constant-time PIN comparison (hash both sides so lengths match). */
-export function pinMatches(given: unknown): boolean {
-  if (typeof given !== "string" || !given || given.length > 64) return false;
-  const a = createHash("sha256").update(given).digest();
-  const b = createHash("sha256").update(secrets().organizerPin).digest();
-  return timingSafeEqual(a, b);
+// Brute-force guard for the organizer PIN: after 10 wrong PINs from one client within 10 minutes,
+// every PIN check from that client fails for 10 minutes. Kept on globalThis so all route bundles share it.
+const PIN_MAX_FAILS = 10;
+const PIN_WINDOW_MS = 10 * 60_000;
+const pinFails: Map<string, { count: number; since: number }> =
+  ((globalThis as Record<string, unknown>).__smPinFails as Map<string, { count: number; since: number }>) ?? new Map();
+(globalThis as Record<string, unknown>).__smPinFails = pinFails;
+
+function clientKey(req: Request): string {
+  return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+}
+
+/** Constant-time PIN comparison (hash both sides so lengths match), rate limited per client. */
+export function pinMatches(given: unknown, client = "local"): boolean {
+  const now = Date.now();
+  const rec = pinFails.get(client);
+  if (rec && now - rec.since > PIN_WINDOW_MS) pinFails.delete(client);
+  if ((pinFails.get(client)?.count ?? 0) >= PIN_MAX_FAILS) return false;
+  let ok = false;
+  if (typeof given === "string" && given && given.length <= 64) {
+    const a = createHash("sha256").update(given).digest();
+    const b = createHash("sha256").update(secrets().organizerPin).digest();
+    ok = timingSafeEqual(a, b);
+  }
+  if (!ok && given) {
+    const cur = pinFails.get(client) ?? { count: 0, since: now };
+    cur.count += 1;
+    pinFails.set(client, cur);
+  }
+  return ok;
 }
 
 export function isOrganizer(req: Request): boolean {
-  return pinMatches(req.headers.get("x-organizer-pin"));
+  return pinMatches(req.headers.get("x-organizer-pin"), clientKey(req));
+}
+
+export function organizerLocked(req: Request): boolean {
+  return (pinFails.get(clientKey(req))?.count ?? 0) >= PIN_MAX_FAILS;
 }
 
 export function badgeView(state: LedgerState, badge: Badge) {

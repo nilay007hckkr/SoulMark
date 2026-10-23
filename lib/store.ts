@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createAuthState, type AuthState } from "./auth";
 import { createEvent, createLedger } from "./ledger";
@@ -20,17 +20,23 @@ function ensureDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 }
 
+/** Missing file -> null. A file that exists but can't be parsed throws, so we never overwrite real data with a fresh state. */
 function readJson<T>(file: string): T | null {
+  if (!existsSync(file)) return null;
+  const text = readFileSync(file, "utf8");
   try {
-    return JSON.parse(readFileSync(file, "utf8")) as T;
+    return JSON.parse(text) as T;
   } catch {
-    return null;
+    throw new Error(`[soulmark] ${file} is corrupt — refusing to overwrite it. Fix or move the file, then restart.`);
   }
 }
 
+/** Atomic write: write a temp file, then rename it over the target. */
 function writeJson(file: string, value: unknown) {
   ensureDir();
-  writeFileSync(file, JSON.stringify(value, null, 1), "utf8");
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(value, null, 1), "utf8");
+  renameSync(tmp, file);
 }
 
 interface Secrets {
@@ -60,8 +66,16 @@ export function issuer() {
   return { name, address };
 }
 
+let demoWarned = false;
+
+/** Fail closed: the sign-in key is only shown on screen when DEMO_MODE=true is set explicitly. */
 export function demoMode(): boolean {
-  return (process.env.DEMO_MODE ?? "true").toLowerCase() !== "false";
+  const on = (process.env.DEMO_MODE ?? "").trim().toLowerCase() === "true";
+  if (on && !demoWarned) {
+    demoWarned = true;
+    console.warn("[soulmark] DEMO_MODE=true: sign-in keys are shown on screen. Anyone can sign in as any email. Do not use for real events.");
+  }
+  return on;
 }
 
 export function loadLedger(): LedgerState {

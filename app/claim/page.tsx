@@ -25,13 +25,13 @@ type Failure = { status: number; message: string; showWallet?: boolean };
 
 function friendly(status: number, raw: string): Failure {
   const lower = raw.toLowerCase();
-  if (status === 400) return { status, message: "This QR code has expired — scan the live one on screen again" };
+  if (status === 400) return { status, message: raw || "This QR code has expired — scan the live one on screen again" };
   if (status === 409) {
     if (lower.includes("reuse") || lower.includes("used"))
       return { status, message: "This QR code was already used — scan the live one on screen again" };
     return { status, message: "You already have this badge", showWallet: true };
   }
-  if (status === 403) return { status, message: "Claiming for this event is closed" };
+  if (status === 403) return { status, message: raw || "Claiming for this event is closed" };
   if (status === 404) return { status, message: "Event not found" };
   return { status, message: raw || "Something went wrong. Please try again." };
 }

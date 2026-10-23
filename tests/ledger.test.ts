@@ -84,6 +84,34 @@ test("reissue moves the badge to a new wallet and revokes the old one", () => {
   assert.equal(verifyChain(state), true);
 });
 
+test("a revoked wallet cannot re-claim with the live QR", () => {
+  const { state, event } = setup();
+  const badge = claim(state, { eventId: event.id, wallet: ALICE, nonceKey: "n1", nonceExpMs: later(5).getTime() }, later(1));
+  revoke(state, badge.tokenId, ISSUER.address, later(2));
+  assert.equal(code(() => claim(state, { eventId: event.id, wallet: ALICE, nonceKey: "n2", nonceExpMs: later(5).getTime() }, later(3))), "revoked");
+});
+
+test("a badge can only be reissued once", () => {
+  const { state, event } = setup();
+  const old = claim(state, { eventId: event.id, wallet: ALICE, nonceKey: "n1", nonceExpMs: later(5).getTime() }, later(1));
+  reissue(state, old.tokenId, BOB, ISSUER.address, later(2));
+  const CAROL = "0x" + "3".repeat(40);
+  assert.equal(code(() => reissue(state, old.tokenId, CAROL, ISSUER.address, later(3))), "already_reissued");
+  assert.equal(hasBadge(state, CAROL, event.id), false);
+});
+
+test("editing derived state (revoked flag, event window) breaks verifyChain", () => {
+  const { state, event } = setup();
+  const badge = claim(state, { eventId: event.id, wallet: ALICE, nonceKey: "n1", nonceExpMs: later(5).getTime() }, later(1));
+  revoke(state, badge.tokenId, ISSUER.address, later(2));
+  const unrevoked = structuredClone(state);
+  unrevoked.badges[0].revoked = false;
+  assert.equal(verifyChain(unrevoked), false);
+  const reopened = structuredClone(state);
+  reopened.events[0].claimEnd = later(9999).toISOString();
+  assert.equal(verifyChain(reopened), false);
+});
+
 test("tampering with history breaks verifyChain", () => {
   const { state, event } = setup();
   claim(state, { eventId: event.id, wallet: ALICE, nonceKey: "n1", nonceExpMs: later(5).getTime() }, later(1));

@@ -36,7 +36,13 @@ function short(s: string) {
 
 export default function VerifyWalletPage() {
   const params = useParams<{ wallet: string }>();
-  const wallet = decodeURIComponent(String(params?.wallet ?? ""));
+  const rawWallet = String(params?.wallet ?? "");
+  let wallet = rawWallet;
+  try {
+    wallet = decodeURIComponent(rawWallet);
+  } catch {
+    // malformed % escapes: keep the raw value; the API rejects it as an invalid address
+  }
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {

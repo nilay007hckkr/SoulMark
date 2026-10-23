@@ -132,6 +132,10 @@ export function claim(
   if (!isClaimOpen(event, now)) throw new LedgerError("claim_closed", 403, "Claiming for this event is closed");
   const wallet = args.wallet.toLowerCase();
   if (hasBadge(state, wallet, event.id)) throw new LedgerError("already_claimed", 409, "You already have this badge");
+  // A revoked badge cannot be re-claimed with the live QR; only the issuer can reissue it.
+  if (state.badges.some((b) => b.owner === wallet && b.eventId === event.id)) {
+    throw new LedgerError("revoked", 403, "Your badge for this event was revoked by the organizer");
+  }
   pruneNonces(state, now.getTime());
   if (state.usedNonces[args.nonceKey] !== undefined) throw new LedgerError("code_reused", 409, "This claim code was already used");
   state.usedNonces[args.nonceKey] = args.nonceExpMs;
@@ -162,8 +166,11 @@ export function reissue(state: LedgerState, tokenId: number, newWallet: string, 
   requireIssuer(state, old, issuerAddress);
   const wallet = newWallet.toLowerCase();
   if (wallet === old.owner) throw new LedgerError("same_wallet", 400, "New wallet must be different");
+  if (old.revoked || state.badges.some((b) => b.reissuedFrom === tokenId)) {
+    throw new LedgerError("already_reissued", 409, "This badge was already revoked or reissued");
+  }
   if (hasBadge(state, wallet, old.eventId)) throw new LedgerError("already_claimed", 409, "That wallet already has this badge");
-  if (!old.revoked) revoke(state, tokenId, issuerAddress, now);
+  revoke(state, tokenId, issuerAddress, now);
   const badge = mint(state, old.eventId, wallet, issuerAddress, now, "REISSUE", { reissuedFrom: tokenId });
   badge.reissuedFrom = tokenId;
   return badge;
@@ -189,10 +196,18 @@ export function verifyChain(state: LedgerState): boolean {
     for (const tx of b.txs) if (txHash(tx) !== tx.hash) return false;
     if (blockHash(b) !== b.hash) return false;
   }
+  // Derived state must match a replay of the transactions (badges, revocations, events).
+  const txs = state.blocks.flatMap((b) => b.txs);
+  const revokedIds = new Set(txs.filter((t) => t.type === "REVOKE").map((t) => t.data.tokenId));
   for (const badge of state.badges) {
     const block = state.blocks[badge.blockNumber];
     const tx = block?.txs.find((t) => t.hash === badge.txHash);
     if (!tx || tx.data.tokenId !== badge.tokenId || tx.data.to !== badge.owner || tx.data.eventId !== badge.eventId) return false;
+    if (badge.revoked !== revokedIds.has(badge.tokenId)) return false;
+  }
+  for (const event of state.events) {
+    const tx = txs.find((t) => t.type === "CREATE_EVENT" && t.data.eventId === event.id);
+    if (!tx || tx.from !== event.issuerAddress || tx.data.name !== event.name || tx.data.date !== event.date || tx.data.claimEnd !== event.claimEnd) return false;
   }
   return true;
 }

@@ -52,8 +52,9 @@ export default function PresentPage() {
     else setPin(p);
   }, [router]);
 
+  const closed = useRef(false);
   const loadQr = useCallback(async () => {
-    if (!pin || !id || fetching.current) return;
+    if (!pin || !id || fetching.current || closed.current) return;
     fetching.current = true;
     try {
       const res = await fetch(`/api/events/${encodeURIComponent(id)}/qr`, {
@@ -65,7 +66,12 @@ export default function PresentPage() {
         unauthorized();
         return;
       }
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      if (!res.ok) {
+        // Never leave a dead code on screen; a closed event stops refreshing for good.
+        if (res.status === 403) closed.current = true;
+        setQr(null);
+        throw new Error(data.error || `Error ${res.status}`);
+      }
       offset.current = Number(data.serverNow) - Date.now();
       setQr(data as Qr);
       setQrError(null);

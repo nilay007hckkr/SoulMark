@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Badge from "@/components/Badge";
+import Badge3DLazy from "@/components/Badge3DLazy";
 import type { BadgeArt, EventRecord } from "@/lib/types";
 import styles from "./wallet.module.css";
 
@@ -54,6 +55,7 @@ export default function WalletPage() {
   const [events, setEvents] = useState<EventView[] | null>(null);
   const [eventsErr, setEventsErr] = useState("");
   const [toast, setToast] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -118,6 +120,10 @@ export default function WalletPage() {
   const total = badges?.length ?? 0;
   const revoked = badges?.filter((b) => b.revoked).length ?? 0;
   const active = total - revoked;
+  const newest = badges && badges.length
+    ? badges.reduce((n, b) => (new Date(b.issuedAt).getTime() > new Date(n.issuedAt).getTime() ? b : n), badges[0])
+    : null;
+  const featured = badges?.find((b) => b.tokenId === selectedId) ?? newest;
 
   return (
     <main className="screen screen--wide">
@@ -205,9 +211,30 @@ export default function WalletPage() {
               <Link href="/scan" className="btn-primary" style={{ maxWidth: 320 }}>SCAN</Link>
             </div>
           ) : (
+            <>
+            {featured && (
+              <div className={`card ${styles.featured}`}>
+                <div className="label">Featured · Tilt me</div>
+                <Badge3DLazy key={featured.tokenId} art={featured.art} eventName={featured.event.name} date={featured.event.date} size={260} revoked={featured.revoked} />
+                <h3 className={styles.badgeName}>{featured.event.name}</h3>
+                <div className={styles.meta}>{featured.event.date} · TOKEN #{featured.tokenId}</div>
+              </div>
+            )}
             <div className={styles.gallery}>
               {badges.map((b) => (
-                <article key={b.tokenId} className={styles.badgeCard}>
+                <article
+                  key={b.tokenId}
+                  className={`${styles.badgeCard} ${featured?.tokenId === b.tokenId ? styles.selected : ""}`}
+                  onClick={() => setSelectedId(b.tokenId)}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      setSelectedId(b.tokenId);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-pressed={featured?.tokenId === b.tokenId}
+                >
                   <Badge art={b.art} eventName={b.event.name} date={b.event.date} size={160} revoked={b.revoked} />
                   <h3 className={styles.badgeName}>{b.event.name}</h3>
                   <div className={styles.meta}>{b.event.date} · {b.event.venue}</div>
@@ -215,12 +242,13 @@ export default function WalletPage() {
                     TOKEN #{b.tokenId}
                     {b.revoked && <span style={{ color: "var(--red)" }}> · REVOKED</span>}
                   </div>
-                  <button className={styles.share} onClick={() => copy(verifyUrl, "Verify link copied")}>
+                  <button className={styles.share} onClick={(e) => { e.stopPropagation(); copy(verifyUrl, "Verify link copied"); }}>
                     Share verify link
                   </button>
                 </article>
               ))}
             </div>
+            </>
           )}
         </section>
       ) : (

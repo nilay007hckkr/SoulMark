@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "node:path";
 import { createAuthState, type AuthState } from "./auth";
 import { createEvent, createLedger } from "./ledger";
+import { createPresence, type PresenceState } from "./presence";
 import type { LedgerState } from "./types";
 
 /**
@@ -96,6 +97,17 @@ export function loadLedger(): LedgerState {
 
 export function saveLedger(state: LedgerState) {
   writeJson(LEDGER_FILE, state);
+}
+
+const PRESENCE_FILE = path.join(DATA_DIR, "presence.json");
+
+/** Off-chain audit data for proxy detection: scans, claims with device/IP, blocked attempts. */
+export function loadPresence(): PresenceState {
+  return readJson<PresenceState>(PRESENCE_FILE) ?? createPresence();
+}
+
+export function savePresence(state: PresenceState) {
+  writeJson(PRESENCE_FILE, state);
 }
 
 export function loadAuth(): AuthState {

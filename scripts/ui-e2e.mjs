@@ -5,7 +5,7 @@ import path from "node:path";
 
 const [, , EDGE, OUT, BASE, PIN] = process.argv;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const edge = spawn(EDGE, ["--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=9333", `--user-data-dir=${path.join(OUT, "edge-e2e")}`, "--window-size=520,1000", "about:blank"], { stdio: "ignore" });
+const edge = spawn(EDGE, ["--headless=new", "--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--no-first-run", "--remote-debugging-port=9333", `--user-data-dir=${path.join(OUT, "edge-e2e")}`, "--window-size=520,1000", "about:blank"], { stdio: "ignore" });
 let ws, id = 0;
 const pending = new Map();
 const send = (method, params = {}) => new Promise((res, rej) => { const i = ++id; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
@@ -56,10 +56,21 @@ try {
   await shot("ui-claim.png");
 
   console.log("5. badge wallet");
-  await go(`${BASE}/wallet`, 3500);
+  const canvas3d = await evalJs(`!!document.querySelector("canvas")`);
+  console.log("   3D coin canvas on claim screen:", canvas3d);
+  await go(`${BASE}/wallet`, 4500);
+  console.log("   3D featured coin on wallet:", await evalJs(`!!document.querySelector("canvas")`));
   console.log("   wallet shows event:", await evalJs(`document.body.innerText.includes("Vibeathon Round 1")`));
   await shot("ui-wallet.png");
-  console.log(claimed && hasQr ? "UI E2E PASSED" : "UI E2E FAILED");
+  console.log("6. organizer dashboard: geofence + proxy watch");
+  const gev = await evalJs(`fetch("/api/events").then(r=>r.json()).then(d=>(d.events.find(e=>e.geofence)||d.events[0]).id)`);
+  await send("Emulation.setDeviceMetricsOverride", { width: 520, height: 2200, deviceScaleFactor: 1, mobile: false });
+  await go(`${BASE}/organizer/${gev}`, 5000);
+  const watch = await evalJs(`/PROXY WATCH/i.test(document.body.innerText) && /GEOFENCE/i.test(document.body.innerText)`);
+  console.log("   dashboard shows geofence + proxy watch:", watch);
+  await shot("ui-dashboard.png");
+  const has3d = await evalJs(`true`);
+  console.log(claimed && hasQr && watch ? "UI E2E PASSED" : "UI E2E FAILED");
 } catch (e) {
   console.error("UI E2E ERROR", e);
 } finally {

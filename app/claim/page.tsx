@@ -3,9 +3,33 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import Badge from "@/components/Badge";
+import Badge3DLazy from "@/components/Badge3DLazy";
 import type { BadgeArt, EventRecord } from "@/lib/types";
 import styles from "./claim.module.css";
+
+type LocationResult = { ok: true; value: { lat: number; lng: number; accuracy: number } } | { ok: false; message: string };
+
+/** One high-accuracy location fix for geofenced events. Fails closed with a clear message. */
+function currentLocation(): Promise<LocationResult> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      resolve({ ok: false, message: "This event checks that you're in the room, but this browser can't share location." });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ ok: true, value: { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy } }),
+      (e) =>
+        resolve({
+          ok: false,
+          message:
+            e.code === e.PERMISSION_DENIED
+              ? "Location is needed to prove you're in the room. Allow location access and try again."
+              : "Couldn't get your location. Move near a window and try again.",
+        }),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  });
+}
 
 type BadgeView = {
   tokenId: number;
@@ -40,6 +64,9 @@ function ClaimInner() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get("t") ?? "";
+  // Personal scan id from /api/scan: lets the server tell if this link was forwarded from someone else's phone.
+  const scanId = params.get("s") ?? "";
+  const selfPath = "/claim?t=" + token + (scanId ? "&s=" + encodeURIComponent(scanId) : "");
   const [phase, setPhase] = useState<Phase>("checking");
   const [badge, setBadge] = useState<BadgeView | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -47,7 +74,7 @@ function ClaimInner() {
   const started = useRef(false);
   const key = "sm_claimed_" + token;
 
-  const claim = useCallback(async () => {
+  const claim = useCallback(async (location?: { lat: number; lng: number; accuracy: number }) => {
     if (!token) return;
     setPhase("pending");
     setFailure(null);
@@ -55,12 +82,22 @@ function ClaimInner() {
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, scanId: scanId || undefined, location }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        router.replace("/login?next=" + encodeURIComponent("/claim?t=" + token));
+        router.replace("/login?next=" + encodeURIComponent(selfPath));
         return;
+      }
+      // Geofenced event: ask for this phone's location once, then retry.
+      if (res.status === 428 && data?.needLocation && !location) {
+        const loc = await currentLocation();
+        if (!loc.ok) {
+          setFailure({ status: 403, message: loc.message });
+          setPhase("error");
+          return;
+        }
+        return claim(loc.value);
       }
       if (!res.ok) {
         setFailure(friendly(res.status, data?.error ?? ""));
@@ -74,7 +111,7 @@ function ClaimInner() {
       setFailure({ status: 0, message: "Network problem. Check your connection and try again." });
       setPhase("error");
     }
-  }, [token, key, router]);
+  }, [token, key, router, scanId, selfPath]);
 
   useEffect(() => {
     if (!token || started.current) return;
@@ -83,7 +120,7 @@ function ClaimInner() {
       try {
         const me = await fetch("/api/me");
         if (me.status === 401) {
-          router.replace("/login?next=" + encodeURIComponent("/claim?t=" + token));
+          router.replace("/login?next=" + encodeURIComponent(selfPath));
           return;
         }
       } catch {
@@ -104,7 +141,7 @@ function ClaimInner() {
       setPhase("ready");
       void claim();
     })();
-  }, [token, key, router, claim]);
+  }, [token, key, router, claim, selfPath]);
 
   useEffect(() => {
     if (!toast) return;
@@ -154,7 +191,7 @@ function ClaimInner() {
       {phase === "done" && badge && (
         <div className={`stack center ${styles.reveal}`}>
           <div className={styles.badgeWrap}>
-            <Badge art={badge.art} eventName={badge.event.name} date={badge.event.date} size={280} animateIn />
+            <Badge3DLazy art={badge.art} eventName={badge.event.name} date={badge.event.date} size={280} animateIn />
           </div>
           <p className="live">BADGE CLAIMED</p>
           <h2 className={styles.eventName}>{badge.event.name}</h2>
@@ -185,13 +222,13 @@ function ClaimInner() {
           ) : failure.status === 400 || failure.status === 409 ? (
             <Link href="/scan" className="btn-primary">SCAN AGAIN</Link>
           ) : (
-            <button className="btn-primary" onClick={claim}>CLAIM MY BADGE</button>
+            <button className="btn-primary" onClick={() => void claim()}>CLAIM MY BADGE</button>
           )}
           <Link href="/" className="btn-text center">BACK HOME</Link>
         </div>
       )}
       {phase === "ready" && (
-        <button className="btn-primary" onClick={claim}>CLAIM MY BADGE</button>
+        <button className="btn-primary" onClick={() => void claim()}>CLAIM MY BADGE</button>
       )}
 
       {toast && <div className="toast" role="status">{toast}</div>}

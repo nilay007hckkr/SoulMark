@@ -8,7 +8,7 @@ import styles from "./page.module.css";
 const SLIDES = [
   { n: "1", title: "SCAN THE QR", body: "AT THE EVENT, SCAN THE LIVE QR ON THE ORGANIZER'S SCREEN. IT CHANGES EVERY 20 SECONDS, SO IT ONLY WORKS IF YOU'RE IN THE ROOM.", tone: "blue" },
   { n: "2", title: "CLAIM YOUR BADGE", body: "LOG IN WITH YOUR EMAIL AND CLAIM YOUR BADGE. IT LANDS IN YOUR WALLET, BOUND TO YOU FOREVER.", tone: "black" },
-  { n: "3", title: "ANYONE CAN VERIFY", body: "SHARE ONE LINK. ANYONE CAN CHECK YOUR BADGES ARE REAL, ON-CHAIN, AND STILL VALID.", tone: "green" },
+  { n: "3", title: "ANYONE CAN VERIFY", body: "SHARE ONE LINK. ANYONE CAN CHECK YOUR BADGES ARE REAL AND STILL VALID ON A TAMPER-EVIDENT LEDGER.", tone: "green" },
 ] as const;
 
 const TOTAL = SLIDES.length + 1;
@@ -86,7 +86,7 @@ export default function Home() {
             <div className="spacer" />
             <h1 className="h-thin">HI THERE</h1>
             <p className="body-pixel">
-              SOULMARK GIVES YOU BADGES THAT PROVE YOU WERE THERE. THEY LIVE ON-CHAIN AND CAN NEVER BE SOLD OR PASSED AROUND.
+              SOULMARK GIVES YOU BADGES THAT PROVE YOU WERE THERE. THEY LIVE ON A TAMPER-EVIDENT LEDGER AND CAN NEVER BE SOLD OR PASSED AROUND.
             </p>
           </>
         ) : (

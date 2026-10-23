@@ -1,5 +1,5 @@
 import { createSession, verifyOtp, type AuthUser } from "@/lib/auth";
-import { fail, handleError, json, readBody, SESSION_COOKIE } from "@/lib/http";
+import { cookieSecure, fail, handleError, json, readBody, SESSION_COOKIE } from "@/lib/http";
 import { loadAuth, saveAuth } from "@/lib/store";
 import { isOtpCode, normalizeEmail } from "@/lib/validate";
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       sameSite: "lax",
       path: "/",
       maxAge: 7 * 24 * 3600,
-      secure: req.headers.get("x-forwarded-proto") === "https",
+      secure: cookieSecure(req),
     });
     return res;
   } catch (e) {

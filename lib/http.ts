@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { badgeArt } from "./art";
 import { AuthError, sessionUser, type AuthUser } from "./auth";
 import { getEvent, LedgerError } from "./ledger";
+import { isDeviceId, newDeviceId } from "./presence";
 import { loadAuth, secrets } from "./store";
 import type { Badge, LedgerState } from "./types";
 
@@ -61,8 +62,42 @@ const pinFails: Map<string, { count: number; since: number }> =
   ((globalThis as Record<string, unknown>).__smPinFails as Map<string, { count: number; since: number }>) ?? new Map();
 (globalThis as Record<string, unknown>).__smPinFails = pinFails;
 
+/**
+ * Client IP. The Next server appends the direct peer as the right-most X-Forwarded-For entry.
+ * Only with TRUST_PROXY=true (app behind a tunnel/reverse proxy) do we use CF-Connecting-IP or the
+ * entry the proxy added; otherwise client-supplied forwarding headers are never trusted.
+ */
+export function clientIp(req: Request): string {
+  const xff = (req.headers.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (process.env.TRUST_PROXY === "true") {
+    const cf = req.headers.get("cf-connecting-ip")?.trim();
+    if (cf) return cf.slice(0, 64);
+    if (xff.length >= 2) return xff[xff.length - 2].slice(0, 64);
+  }
+  return (xff[xff.length - 1] ?? "local").slice(0, 64);
+}
+
 function clientKey(req: Request): string {
-  return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+  return clientIp(req);
+}
+
+/** Secure cookies whenever the app is served over HTTPS (directly or via a proxy/tunnel). */
+export function cookieSecure(req: Request): boolean {
+  return (process.env.PUBLIC_BASE_URL ?? "").startsWith("https://") || req.headers.get("x-forwarded-proto") === "https";
+}
+
+export const DEVICE_COOKIE = "sm_device";
+
+/** Random per-phone id (httpOnly cookie, 1 year). Clearing cookies resets it, so it stops casual proxying, not a determined attacker. */
+export function deviceFor(req: Request): { id: string; isNew: boolean } {
+  const existing = getCookie(req, DEVICE_COOKIE);
+  return isDeviceId(existing) ? { id: existing, isNew: false } : { id: newDeviceId(), isNew: true };
+}
+
+export function setDeviceCookie(res: NextResponse, req: Request, device: { id: string; isNew: boolean }) {
+  if (device.isNew) {
+    res.cookies.set(DEVICE_COOKIE, device.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 365 * 24 * 3600, secure: cookieSecure(req) });
+  }
 }
 
 /** Constant-time PIN comparison (hash both sides so lengths match), rate limited per client. */

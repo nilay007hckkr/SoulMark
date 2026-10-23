@@ -16,3 +16,19 @@
   0% { background: #1f5f1f; box-shadow: 0 0 0 2px var(--live); }
   100% { background: var(--surface-2); box-shadow: 0 0 0 0 transparent; }
 }
+.section { margin-top: 24px; }
+.status { font-family: var(--pixel); font-size: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
+.slider { width: 100%; accent-color: var(--live); }
+.preset { text-transform: uppercase; }
+.presetOn { border-color: var(--live); color: var(--live); }
+.toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--live); }
+.watchStats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 800px) {
+  .watchStats { grid-template-columns: repeat(5, 1fr); }
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.reason { display: inline-block; background: #555; color: #eee; font-family: var(--pixel); letter-spacing: 0.08em; padding: 2px 10px; border-radius: 6px; font-size: 16px; text-transform: uppercase; }
+.risk { display: inline-block; font-family: var(--pixel); font-size: 18px; letter-spacing: 0.1em; padding: 2px 12px; border-radius: 999px; color: #000; }
+.riskWatch { background: var(--orange); }
+.riskHigh { background: var(--red); color: #fff; }

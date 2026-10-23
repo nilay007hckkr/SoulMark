@@ -72,7 +72,7 @@ function ExplorerInner() {
         <Link href="/" className="label" style={{ textDecoration: "none" }}>SOULMARK</Link>
         <span className="live">● LIVE</span>
       </div>
-      <h1 className="h-pixel" style={{ marginTop: 16 }}>SOULMARK LEDGER</h1>
+      <h1 className="h-pixel" style={{ marginTop: 16 }}>SOULMARK ACTIVITY LOG</h1>
       {chain && (
         <div className="row" style={{ marginTop: 12, flexWrap: "wrap" }}>
           <span className="chip">HEIGHT {chain.height}</span>

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { Badge, Block, EventRecord, LedgerState, Tx, TxType } from "./types";
+import type { Badge, Block, EventRecord, Geofence, LedgerState, Tx, TxType } from "./types";
 
 /**
  * SoulMark ledger: an append-only, hash-chained log that follows the rules of an
@@ -174,6 +174,20 @@ export function reissue(state: LedgerState, tokenId: number, newWallet: string, 
   const badge = mint(state, old.eventId, wallet, issuerAddress, now, "REISSUE", { reissuedFrom: tokenId });
   badge.reissuedFrom = tokenId;
   return badge;
+}
+
+/** Issuer only: turn the claim-time geofence on/off or move it. Logged as a SET_GEOFENCE transaction for audit. */
+export function setGeofence(state: LedgerState, eventId: string, fence: Geofence, issuerAddress: string, now: Date): EventRecord {
+  const event = getEvent(state, eventId);
+  if (!event) throw new LedgerError("event_not_found", 404, "Event not found");
+  if (event.issuerAddress !== issuerAddress) throw new LedgerError("not_issuer", 403, "Only the issuer can do this");
+  if (!Number.isFinite(fence.radiusM) || fence.radiusM < 10 || fence.radiusM > 5000) {
+    throw new LedgerError("bad_radius", 400, "Radius must be between 10 m and 5 km");
+  }
+  const geofence: Geofence = { enabled: fence.enabled, lat: fence.lat, lng: fence.lng, radiusM: Math.round(fence.radiusM) };
+  appendTx(state, "SET_GEOFENCE", issuerAddress, { eventId, enabled: geofence.enabled ? 1 : 0, radiusM: geofence.radiusM, lat: geofence.lat, lng: geofence.lng }, now);
+  event.geofence = geofence;
+  return event;
 }
 
 /** Soulbound: ERC-5192 locked() is always true for existing tokens and transfers always revert. */

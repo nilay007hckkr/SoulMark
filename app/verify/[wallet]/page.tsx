@@ -1,5 +1,6 @@
 "use client";
 
+import { stampLabel } from "@/lib/stamp";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -83,7 +84,10 @@ export default function VerifyWalletPage() {
         )}
         {state.kind === "error" && <p className="error" role="alert">{state.message.toUpperCase()}</p>}
         {state.kind === "ok" && state.data.verified && (
-          <div className={styles.stamp}><span>VERIFIED<br />ON-CHAIN</span></div>
+          <>
+            <div className={styles.stamp}><span>{stampLabel({ verified: true }).title}<br />SOULMARK LEDGER</span></div>
+            <p className="label" style={{ textAlign: "center", marginTop: 12 }}>{stampLabel({ verified: true }).subtitle}</p>
+          </>
         )}
         {state.kind === "ok" && !state.data.verified && (
           <div className={`${styles.stamp} ${styles.stampNeutral}`}><span>NO BADGES<br />FOUND</span></div>

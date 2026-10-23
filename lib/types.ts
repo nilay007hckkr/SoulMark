@@ -1,8 +1,17 @@
 // Shared shapes for the SoulMark ledger, API and UI.
 
-export type TxType = "CREATE_EVENT" | "CLAIM" | "REVOKE" | "REISSUE";
+export type TxType = "CREATE_EVENT" | "CLAIM" | "REVOKE" | "REISSUE" | "SET_GEOFENCE";
+
+/** Optional claim-time location check, set by the organizer ("this room's location" + radius). */
+export interface Geofence {
+  enabled: boolean;
+  lat: number;
+  lng: number;
+  radiusM: number;
+}
 
 export interface EventRecord {
+  geofence?: Geofence | null;
   id: string; // "evt_" + 8 hex
   name: string;
   date: string; // YYYY-MM-DD

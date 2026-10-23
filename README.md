@@ -107,9 +107,25 @@ npm start          # http://localhost:3000 and http://<LAN-IP>:3000
 
 Demo: `/organizer` → PIN → create event → set geofence → **PRESENT** → scan with a phone → email + key → 3D badge → **Share verify link**; forward the claim link to a second phone and watch **Proxy Watch** name the sharer.
 
+## Database
+- **Engine and location:** SQLite via `better-sqlite3`. The file is `data/app.db`; set `DB_PATH` to change it. `data/` and `*.db*` are git-ignored.
+- **Creation:** on first use the server creates the folder and the schema (`CREATE TABLE IF NOT EXISTS`), with WAL mode, `foreign_keys=ON`, and indexes on lookup columns.
+  - Ledger tables: `blocks`, `txs`, `events`, `badges`, `used_nonces`
+  - Account tables: `users`, `otps`, `sessions`
+  - Proxy-detection tables: `scans`, `claims`, `blocked_attempts`
+  - Generated secrets: `meta`
+- **Code layout:** all SQL lives in `lib/db.ts` and uses parameterized statements only. Route handlers go through `lib/store.ts`.
+- **Seeding:**
+  - If the database is empty, it is seeded with the genesis block and the demo event "Vibeathon Round 1".
+  - If `data/*.json` files from the older JSON storage exist, they are imported once and renamed to `*.json.imported`.
+- **Reset:** stop the server, delete `data/app.db`, `data/app.db-wal` and `data/app.db-shm`, then start again. A fresh seeded database is created. Also delete any leftover `data/*.json.imported` files if you don't want them kept around.
+  ```powershell
+  Remove-Item data\app.db, data\app.db-wal, data\app.db-shm -ErrorAction SilentlyContinue
+  ```
+
 ## Test
 ```powershell
-npm test                    # 34 unit tests
+npm test                    # 35 unit tests
 npx tsc --noEmit -p .       # type check
 npm run smoke               # API journey incl. geofence + proxy scenarios (needs a running server; uses bash)
 npm run e2e                 # real-browser journey in headless Edge/Chrome (BROWSER_PATH to override)

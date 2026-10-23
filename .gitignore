@@ -7,3 +7,9 @@ data/
 *.log
 next-env.d.ts
 *.tsbuildinfo
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+*.db-journal

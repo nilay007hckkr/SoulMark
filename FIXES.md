@@ -15,8 +15,8 @@ Fixes are in priority order. **P0** items close the gap between what the brief r
 ## How to use this file
 
 1. Commit this file to the repo root as `FIXES.md`.
-2. One teammate starts Claude Code with the prompt in **Appendix C**.
-3. At the same time, the others do the **Human setup** steps. Claude Code can't do these.
+2. One teammate runs the prompt in **Appendix C**.
+3. At the same time, the others do the **Human setup** steps. These need a human.
 
 ---
 
@@ -57,7 +57,7 @@ According to `summary.md`, these are done:
 | F15 | Repo cleanup | First impression | S | P3 |
 | F16 | README: trust model + threat table | Honesty, judging | S | P3 |
 
-Effort is a rough guide for Claude Code-assisted work: S is under 30 min, M is 30–90 min, L is over 90 min. Re-estimate after F1, because it is the riskiest item.
+Effort is a rough guide: S is under 30 min, M is 30–90 min, L is over 90 min. Re-estimate after F1, because it is the riskiest item.
 
 ---
 
@@ -531,7 +531,7 @@ New `.env.example` keys, all with empty values:
 - `TRUST_PROXY`
 - `PUBLIC_BASE_URL`
 
-## Appendix C: One Claude Code prompt for P0 + P1
+## Appendix C: One prompt for P0 + P1
 
 ```
 Read FIXES.md, README.md and summary.md. Implement F1–F9 in order (P0, then P1),
